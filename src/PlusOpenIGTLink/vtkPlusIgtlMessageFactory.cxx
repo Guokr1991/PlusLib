@@ -127,7 +127,7 @@ igtl::MessageBase::Pointer vtkPlusIgtlMessageFactory::CreateSendMessage(const st
 
 //----------------------------------------------------------------------------
 PlusStatus vtkPlusIgtlMessageFactory::PackMessages(const PlusIgtlClientInfo& clientInfo, std::vector<igtl::MessageBase::Pointer>& igtlMessages, PlusTrackedFrame& trackedFrame,
-    bool packValidTransformsOnly, vtkPlusTransformRepository* transformRepository/*=NULL*/)
+    bool packValidTransformsOnly, bool sendColumnMajorTransforms, vtkPlusTransformRepository* transformRepository/*=NULL*/)
 {
   int numberOfErrors(0);
   igtlMessages.clear();
@@ -169,7 +169,7 @@ PlusStatus vtkPlusIgtlMessageFactory::PackMessages(const PlusIgtlClientInfo& cli
         PlusTransformName imageTransformName = PlusTransformName(imageStream.Name, imageStream.EmbeddedTransformToFrame);
 
         igtl::Matrix4x4 igtlMatrix;
-        if (vtkPlusIgtlMessageCommon::GetIgtlMatrix(igtlMatrix, transformRepository, imageTransformName) != PLUS_SUCCESS)
+        if (vtkPlusIgtlMessageCommon::GetIgtlMatrix(igtlMatrix, transformRepository, imageTransformName, sendColumnMajorTransforms) != PLUS_SUCCESS)
         {
           LOG_WARNING("Failed to create " << messageType << " message: cannot get image transform");
           numberOfErrors++;
@@ -210,7 +210,7 @@ PlusStatus vtkPlusIgtlMessageFactory::PackMessages(const PlusIgtlClientInfo& cli
         }
 
         igtl::Matrix4x4 igtlMatrix;
-        vtkPlusIgtlMessageCommon::GetIgtlMatrix(igtlMatrix, transformRepository, transformName);
+        vtkPlusIgtlMessageCommon::GetIgtlMatrix(igtlMatrix, transformRepository, transformName, sendColumnMajorTransforms);
 
         igtl::TransformMessage::Pointer transformMessage = dynamic_cast<igtl::TransformMessage*>(igtlMessage->Clone().GetPointer());
         vtkPlusIgtlMessageCommon::PackTransformMessage(transformMessage, transformName, igtlMatrix, trackedFrame.GetTimestamp());
@@ -243,7 +243,7 @@ PlusStatus vtkPlusIgtlMessageFactory::PackMessages(const PlusIgtlClientInfo& cli
         }
 
         igtl::TrackingDataMessage::Pointer trackingDataMessage = dynamic_cast<igtl::TrackingDataMessage*>(igtlMessage->Clone().GetPointer());
-        vtkPlusIgtlMessageCommon::PackTrackingDataMessage(trackingDataMessage, transforms, trackedFrame.GetTimestamp());
+        vtkPlusIgtlMessageCommon::PackTrackingDataMessage(trackingDataMessage, transforms, sendColumnMajorTransforms, trackedFrame.GetTimestamp());
         igtlMessages.push_back(trackingDataMessage.GetPointer());
       }
     }
@@ -288,11 +288,19 @@ PlusStatus vtkPlusIgtlMessageFactory::PackMessages(const PlusIgtlClientInfo& cli
           LOG_ERROR("Unable to retrieve embedded image transform: " << imageTransformName.GetTransformName() << ".");
           continue;
         }
+        if (sendColumnMajorTransforms)
+        {
+          mat->Transpose();
+        }
 
         for (auto nameIter = clientInfo.TransformNames.begin(); nameIter != clientInfo.TransformNames.end(); ++nameIter)
         {
           vtkSmartPointer<vtkMatrix4x4> matrix(vtkSmartPointer<vtkMatrix4x4>::New());
           transformRepository->GetTransform(*nameIter, matrix, &isValid);
+          if (sendColumnMajorTransforms)
+          {
+            matrix->Transpose();
+          }
           trackedFrame.SetCustomFrameTransform(*nameIter, matrix);
           trackedFrame.SetCustomFrameTransformStatus(*nameIter, isValid ? FIELD_OK : FIELD_INVALID);
         }

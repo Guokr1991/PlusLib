@@ -72,7 +72,7 @@ public:
                                          igtl::Matrix4x4& igtlMatrix, double timestamp);
 
   /*! Pack data message from tracked frame */
-  static PlusStatus PackTrackingDataMessage(igtl::TrackingDataMessage::Pointer tdataMessage, const std::map<std::string, vtkSmartPointer<vtkMatrix4x4> >& transforms, double timestamp);
+  static PlusStatus PackTrackingDataMessage(igtl::TrackingDataMessage::Pointer tdataMessage, const std::map<std::string, vtkSmartPointer<vtkMatrix4x4> >& transforms, bool sendColumnMajorTransforms, double timestamp);
 
   /*! Unpack data message */
   static PlusStatus UnpackTrackingDataMessage(igtl::MessageHeader::Pointer headerMsg, igtl::Socket* socket,
@@ -95,7 +95,7 @@ public:
 
 
   /*! Generate igtl::Matrix4x4 with the selected transform name from the transform repository */
-  static PlusStatus GetIgtlMatrix(igtl::Matrix4x4& igtlMatrix, vtkPlusTransformRepository* transformRepository, PlusTransformName& transformName);
+  static PlusStatus GetIgtlMatrix(igtl::Matrix4x4& igtlMatrix, vtkPlusTransformRepository* transformRepository, PlusTransformName& transformName, bool transpose = false);
 
 protected:
   vtkPlusIgtlMessageCommon();

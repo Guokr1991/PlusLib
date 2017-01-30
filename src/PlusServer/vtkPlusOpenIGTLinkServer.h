@@ -172,9 +172,6 @@ protected:
   /*! Process the command replies queue and send messages */
   static PlusStatus SendCommandResponses(vtkPlusOpenIGTLinkServer& self);
 
-  /*! Analyze an incoming command and queue for processing */
-  static PlusStatus ProcessIncomingCommand(igtl::MessageHeader::Pointer headerMsg, int clientId, std::deque<uint32_t>& previousCommandIds, igtl::CommandMessage::Pointer commandMsg, vtkPlusOpenIGTLinkServer* self);
-
   /*! Thread for receiving control data from clients */
   static void* DataReceiverThread(vtkMultiThreader::ThreadInfo* data);
 
@@ -203,6 +200,9 @@ protected:
 
   vtkSetMacro(DelayBetweenRetryAttemptsSec, double);
   vtkGetMacro(DelayBetweenRetryAttemptsSec, double);
+
+  vtkSetMacro(SendColumnMajorTransforms, bool);
+  vtkGetMacro(SendColumnMajorTransforms, bool);
 
   /*!
     Execute a remotely invoked command
@@ -276,6 +276,9 @@ private:
 
   /*! Whether or not the server should send invalid transforms through the IGT Link */
   bool SendValidTransformsOnly;
+
+  /*! Whether or not the server should send transforms in column-major format (instead of row-major) */
+  bool SendColumnMajorTransforms;
 
   /*!
   Default IGT client info used for sending data to clients.

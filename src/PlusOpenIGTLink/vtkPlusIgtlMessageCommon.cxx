@@ -39,7 +39,7 @@ void vtkPlusIgtlMessageCommon::PrintSelf(ostream& os, vtkIndent indent)
 
 //----------------------------------------------------------------------------
 // static
-PlusStatus vtkPlusIgtlMessageCommon::GetIgtlMatrix(igtl::Matrix4x4& igtlMatrix, vtkPlusTransformRepository* transformRepository, PlusTransformName& transformName)
+PlusStatus vtkPlusIgtlMessageCommon::GetIgtlMatrix(igtl::Matrix4x4& igtlMatrix, vtkPlusTransformRepository* transformRepository, PlusTransformName& transformName, bool transpose)
 {
   igtl::IdentityMatrix(igtlMatrix);
 
@@ -61,6 +61,11 @@ PlusStatus vtkPlusIgtlMessageCommon::GetIgtlMatrix(igtl::Matrix4x4& igtlMatrix, 
   {
     LOG_WARNING("Skipped transformation matrix - Invalid transform in the transform repository (" << transformName.From() << " to " << transformName.To() << ")");
     return PLUS_FAIL;
+  }
+
+  if (transpose)
+  {
+    vtkMatrix->Transpose();
   }
 
   // Copy vtk matrix to igt matrix
@@ -592,7 +597,7 @@ PlusStatus vtkPlusIgtlMessageCommon::PackTransformMessage(igtl::TransformMessage
 
 //-------------------------------------------------------------------------------
 // static
-PlusStatus vtkPlusIgtlMessageCommon::PackTrackingDataMessage(igtl::TrackingDataMessage::Pointer trackingDataMessage, const std::map<std::string, vtkSmartPointer<vtkMatrix4x4> >& transforms, double timestamp)
+PlusStatus vtkPlusIgtlMessageCommon::PackTrackingDataMessage(igtl::TrackingDataMessage::Pointer trackingDataMessage, const std::map<std::string, vtkSmartPointer<vtkMatrix4x4> >& transforms, bool sendColumnMajorTransforms, double timestamp)
 {
   if (trackingDataMessage.IsNull())
   {
@@ -610,7 +615,14 @@ PlusStatus vtkPlusIgtlMessageCommon::PackTrackingDataMessage(igtl::TrackingDataM
     {
       for (int j = 0; j < 4; ++j)
       {
-        matrix[i][j] = transformIterator->second->GetElement(i, j);
+        if (sendColumnMajorTransforms)
+        {
+          matrix[i][j] = transformIterator->second->GetElement(j, i);
+        }
+        else
+        {
+          matrix[i][j] = transformIterator->second->GetElement(i, j);
+        }
       }
     }
 

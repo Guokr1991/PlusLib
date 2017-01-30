@@ -83,6 +83,7 @@ vtkPlusOpenIGTLinkServer::vtkPlusOpenIGTLinkServer()
   , MaxTimeSpentWithProcessingMs(50)
   , LastProcessingTimePerFrameMs(-1)
   , SendValidTransformsOnly(true)
+  , SendColumnMajorTransforms(false)
   , DefaultClientSendTimeoutSec(CLIENT_SOCKET_TIMEOUT_SEC)
   , DefaultClientReceiveTimeoutSec(CLIENT_SOCKET_TIMEOUT_SEC)
   , IgtlMessageCrcCheckEnabled(0)
@@ -844,7 +845,7 @@ PlusStatus vtkPlusOpenIGTLinkServer::SendTrackedFrame(PlusTrackedFrame& trackedF
       std::vector<igtl::MessageBase::Pointer> igtlMessages;
       std::vector<igtl::MessageBase::Pointer>::iterator igtlMessageIterator;
 
-      if (this->IgtlMessageFactory->PackMessages(clientIterator->ClientInfo, igtlMessages, trackedFrame, this->SendValidTransformsOnly, this->TransformRepository) != PLUS_SUCCESS)
+      if (this->IgtlMessageFactory->PackMessages(clientIterator->ClientInfo, igtlMessages, trackedFrame, this->SendValidTransformsOnly, this->SendColumnMajorTransforms, this->TransformRepository) != PLUS_SUCCESS)
       {
         LOG_WARNING("Failed to pack all IGT messages");
       }
@@ -1052,6 +1053,7 @@ PlusStatus vtkPlusOpenIGTLinkServer::ReadConfiguration(vtkXMLDataElement* server
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, MaxNumberOfIgtlMessagesToSend, serverElement);
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, NumberOfRetryAttempts, serverElement);
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(double, DelayBetweenRetryAttemptsSec, serverElement);
+  XML_READ_BOOL_ATTRIBUTE_OPTIONAL(SendColumnMajorTransforms, serverElement);
   XML_READ_BOOL_ATTRIBUTE_OPTIONAL(SendValidTransformsOnly, serverElement);
   XML_READ_BOOL_ATTRIBUTE_OPTIONAL(IgtlMessageCrcCheckEnabled, serverElement);
 
@@ -1173,6 +1175,10 @@ igtl::MessageBase::Pointer vtkPlusOpenIGTLinkServer::CreateIgtlMessageFromComman
     {
       imageToReferenceTransform = imageResponse->GetImageToReferenceTransform();
     }
+    if (this->SendColumnMajorTransforms)
+    {
+      imageToReferenceTransform->Transpose();
+    }
 
     vtkImageData* imageData = imageResponse->GetImageData();
     if (imageData == NULL)
@@ -1184,8 +1190,7 @@ igtl::MessageBase::Pointer vtkPlusOpenIGTLinkServer::CreateIgtlMessageFromComman
     igtl::ImageMessage::Pointer igtlMessage = dynamic_cast<igtl::ImageMessage*>(this->IgtlMessageFactory->CreateSendMessage("IMAGE", IGTL_HEADER_VERSION_1).GetPointer());
     igtlMessage->SetDeviceName(imageName.c_str());
 
-    if (vtkPlusIgtlMessageCommon::PackImageMessage(igtlMessage, imageData,
-        imageToReferenceTransform, vtkPlusAccurateTimer::GetSystemTime()) != PLUS_SUCCESS)
+    if (vtkPlusIgtlMessageCommon::PackImageMessage(igtlMessage, imageData, imageToReferenceTransform, vtkPlusAccurateTimer::GetSystemTime()) != PLUS_SUCCESS)
     {
       LOG_ERROR("Failed to create image mesage from command response");
       return NULL;
